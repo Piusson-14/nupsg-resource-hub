@@ -1,20 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import {
-	Search,
-	TrendingUp,
-	Clock3,
-	Download,
-	BookOpenText,
-	GraduationCap,
-	Sparkles,
-	Layers3,
-} from 'lucide-react';
-import { mockResources } from '../data/mockResources';
+import { Search, Clock3, Download, Sparkles, Layers3 } from 'lucide-react';
 import { ResourceCard } from '../components/ResourceCard';
 import { UploadPanel } from '../components/UploadPanel';
 import { AnimatedCounter } from '../components/AnimatedCounter';
-import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import {
+	fetchResources,
+	incrementResourceDownload,
+	uploadResource,
+} from '../lib/resourceService';
 
 const categories = ['All', 'Lecture Slides', 'Past Questions', 'Notes'];
 const universities = [
@@ -33,7 +27,7 @@ function formatBytes(bytes) {
 }
 
 export function HomePage() {
-	const [resources, setResources] = useState(mockResources);
+	const [resources, setResources] = useState([]);
 	const [search, setSearch] = useState('');
 	const [selectedCategory, setSelectedCategory] = useState('All');
 	const [selectedUniversity, setSelectedUniversity] = useState('All');
@@ -43,18 +37,14 @@ export function HomePage() {
 	const [toast, setToast] = useState('');
 
 	useEffect(() => {
-		if (!isSupabaseConfigured || !supabase) {
-			return;
-		}
-
 		const loadResources = async () => {
 			setLoading(true);
-			const { data, error } = await supabase
-				.from('resources')
-				.select('*')
-				.order('created_at', { ascending: false });
-			if (!error && data) {
+			try {
+				const data = await fetchResources();
 				setResources(data);
+			} catch (error) {
+				console.error(error);
+				setToast('Unable to load resources from Supabase yet.');
 			}
 			setLoading(false);
 		};
@@ -113,17 +103,8 @@ export function HomePage() {
 	);
 
 	const handleDownload = async (resource) => {
-		if (!supabase || !isSupabaseConfigured) {
-			setToast(`Downloaded ${resource.title}`);
-			setTimeout(() => setToast(''), 1800);
-			return;
-		}
-
-		const { error } = await supabase
-			.from('resources')
-			.update({ downloads: (resource.downloads || 0) + 1 })
-			.eq('id', resource.id);
-		if (!error) {
+		try {
+			const { downloadUrl } = await incrementResourceDownload(resource);
 			setResources((prev) =>
 				prev.map((item) =>
 					item.id === resource.id
@@ -131,32 +112,29 @@ export function HomePage() {
 						: item,
 				),
 			);
+			if (downloadUrl) {
+				window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+			}
 			setToast(`Downloaded ${resource.title}`);
 			setTimeout(() => setToast(''), 1800);
+		} catch (error) {
+			console.error(error);
+			setToast('Unable to download this resource right now.');
 		}
 	};
 
-	const handleUpload = (payload) => {
-		const nextResource = {
-			id: String(Date.now()),
-			title: payload.title,
-			description: payload.description,
-			university: payload.university,
-			department: payload.department,
-			course_code: payload.course_code,
-			level: payload.level,
-			semester: payload.semester,
-			category: payload.category,
-			file_name: payload.file?.name || 'uploaded-resource',
-			file_path: `/files/${payload.file?.name || 'uploaded-resource'}`,
-			file_size: payload.file?.size || 0,
-			downloads: 0,
-			created_at: new Date().toISOString(),
-		};
-
-		setResources((prev) => [nextResource, ...prev]);
-		setToast('Resource uploaded. Students can discover it instantly.');
-		setTimeout(() => setToast(''), 2200);
+	const handleUpload = async (payload) => {
+		try {
+			const resource = await uploadResource(payload);
+			setResources((prev) => [resource, ...prev]);
+			setToast('Resource uploaded. Students can discover it instantly.');
+			setTimeout(() => setToast(''), 2200);
+		} catch (error) {
+			console.error(error);
+			setToast(
+				'Upload failed. Make sure your Supabase bucket and table are configured for public access.',
+			);
+		}
 	};
 
 	return (
@@ -292,7 +270,7 @@ export function HomePage() {
 							</p>
 						</div>
 						<p className='mt-3 text-2xl font-semibold text-white'>
-							{filteredResources.length} live matches
+							{filteredResources.length} resources ready
 						</p>
 						<p className='mt-2 text-sm text-slate-400'>
 							Search results update instantly as you type.

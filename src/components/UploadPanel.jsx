@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FileUp, UploadCloud, CheckCircle2 } from 'lucide-react';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 const initialForm = {
 	title: '',
@@ -32,7 +33,7 @@ export function UploadPanel({ onUpload }) {
 		if (droppedFile) setFile(droppedFile);
 	};
 
-	const handleSubmit = (event) => {
+	const handleSubmit = async (event) => {
 		event.preventDefault();
 		if (!file) {
 			setMessage('Please select a file to upload first.');
@@ -41,15 +42,18 @@ export function UploadPanel({ onUpload }) {
 
 		setProgress(35);
 		setTimeout(() => setProgress(75), 400);
-		setTimeout(() => {
-			onUpload({ ...form, file });
+		try {
+			await onUpload({ ...form, file });
 			setProgress(100);
 			setMessage(
 				'Resource uploaded successfully. It is now available for students.',
 			);
 			setForm(initialForm);
 			setFile(null);
-		}, 900);
+		} catch (error) {
+			setProgress(0);
+			setMessage('Upload failed. Check your Supabase settings and try again.');
+		}
 	};
 
 	return (

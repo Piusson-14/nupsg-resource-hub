@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { HomePage } from './pages/HomePage';
+import { ResourceDetailPage } from './pages/ResourceDetailPage';
 import { Navbar } from './components/Navbar';
 import './App.css';
 
@@ -14,11 +15,7 @@ function App() {
 				/>
 				<Route
 					path='/resources/:id'
-					element={
-						<div className='mx-auto max-w-4xl px-6 py-16 text-slate-300'>
-							Resource detail view coming soon.
-						</div>
-					}
+					element={<ResourceDetailPage />}
 				/>
 			</Routes>
 		</BrowserRouter>

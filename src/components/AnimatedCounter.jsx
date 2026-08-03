@@ -1,19 +1,21 @@
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
-import { useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 
 export function AnimatedCounter({ value, prefix = '', suffix = '' }) {
-	const count = useMotionValue(0);
-	const rounded = useTransform(count, (latest) => Math.round(latest));
+	const [displayValue, setDisplayValue] = useState(0);
 
 	useEffect(() => {
-		const controls = animate(count, value, { duration: 1.2, ease: 'easeOut' });
-		return controls.stop;
-	}, [count, value]);
+		const frame = requestAnimationFrame(() => {
+			setDisplayValue(value);
+		});
+
+		return () => cancelAnimationFrame(frame);
+	}, [value]);
 
 	return (
 		<motion.span>
 			{prefix}
-			{rounded}
+			{displayValue}
 			{suffix}
 		</motion.span>
 	);
