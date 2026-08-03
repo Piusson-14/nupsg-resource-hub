@@ -192,15 +192,20 @@ export function HomePage() {
 										Find what you need in seconds
 									</h2>
 								</div>
-								<div className='rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-3 text-cyan-300'>
-									<Search size={20} />
+								<div className='rounded-2xl border border-amber-400/20 bg-amber-500/10 p-3'>
+									<img
+										src='https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQrNXIMBlC_u4ndlTu--5LABOovtLa9-6qLNTuHpVu1fA&s=10'
+										alt='NUPS-G crest'
+										className='h-6 w-6 object-contain rounded-full'
+									/>
 								</div>
 							</div>
 
 							<label className='mt-6 flex items-center gap-3 rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-3'>
-								<Search
-									size={18}
-									className='text-slate-400'
+								<img
+									src='https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQrNXIMBlC_u4ndlTu--5LABOovtLa9-6qLNTuHpVu1fA&s=10'
+									alt='NUPS-G crest'
+									className='h-5 w-5 object-contain rounded-full'
 								/>
 								<input
 									value={search}
@@ -384,8 +389,8 @@ export function HomePage() {
 
 			<footer className='border-t border-slate-800 bg-slate-950/70 px-4 py-6 text-center text-sm text-slate-400 sm:px-6 lg:px-8'>
 				<p>
-					Made for NUPS-G students who want to learn faster, study smarter, and
-					share with purpose.
+					© 2026 Piusson. Made for NUPS-G students who want to learn faster,
+					study smarter, and share with purpose.
 				</p>
 			</footer>
 

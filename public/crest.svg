@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="NUPS-G crest">
+  <rect width="256" height="256" rx="56" fill="#07111f"/>
+  <path d="M128 24L58 48v64c0 44 24 83 70 120 46-37 70-76 70-120V48L128 24z" fill="#f5c542" stroke="#ffffff" stroke-width="10"/>
+  <path d="M128 56l-46 20v46c0 28 11 53 31 74 20-21 31-46 31-74V76l-16-20z" fill="#0f172a"/>
+  <path d="M128 80l-18 8v28c0 13 6 25 18 38 12-13 18-25 18-38V88l-18-8z" fill="#f8fafc"/>
+  <path d="M97 76h62" stroke="#f5c542" stroke-width="10" stroke-linecap="round"/>
+  <path d="M128 60v82" stroke="#f5c542" stroke-width="10" stroke-linecap="round"/>
+  <path d="M94 120h68" stroke="#f5c542" stroke-width="10" stroke-linecap="round"/>
+</svg>

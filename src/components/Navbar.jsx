@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, BookOpen, Sparkles } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -13,8 +13,12 @@ export function Navbar() {
 					to='/'
 					className='flex items-center gap-3'
 				>
-					<div className='rounded-2xl border border-cyan-400/30 bg-cyan-500/10 p-2 text-cyan-300'>
-						<BookOpen size={18} />
+					<div className='rounded-2xl border border-amber-400/30 bg-amber-500/10 p-2'>
+						<img
+							src='https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQrNXIMBlC_u4ndlTu--5LABOovtLa9-6qLNTuHpVu1fA&s=10'
+							alt='NUPS-G crest'
+							className='h-6 w-6 object-contain rounded-full'
+						/>
 					</div>
 					<div>
 						<p className='text-sm font-semibold text-white'>
