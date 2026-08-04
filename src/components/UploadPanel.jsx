@@ -3,14 +3,215 @@ import { CheckCircle2, FileUp, UploadCloud } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { categories, UPSA_DEPARTMENTS } from '../lib/resourceService';
 
-const initial = { title: '', description: '', university: 'University of Professional Studies, Accra', department: '', course_code: '', course_name: '', level: '', semester: 'First Semester', category: 'slides' };
+const initial = {
+	title: '',
+	description: '',
+	university: 'University of Professional Studies, Accra',
+	department: '',
+	course_code: '',
+	course_name: '',
+	level: '',
+	semester: 'First Semester',
+	category: 'slides',
+};
 export function UploadPanel({ onUpload }) {
-  const [form, setForm] = useState(initial); const [file, setFile] = useState(null); const [dragging, setDragging] = useState(false); const [progress, setProgress] = useState(0); const [status, setStatus] = useState(''); const input = useRef();
-  const setValue = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
-  const submit = async e => { e.preventDefault(); if (!file) return setStatus('Please add a file before sharing.'); setStatus(''); try { await onUpload({ ...form, file }, setProgress); setStatus('Shared successfully — thank you for strengthening the NUPS-G library!'); setForm(initial); setFile(null); } catch (err) { setProgress(0); setStatus(err.message || 'Upload failed. Please try again.'); } };
-  const fields = [['title','Resource title'],['course_code','Course code'],['course_name','Course name']];
-  return <motion.form initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} onSubmit={submit} className='grid gap-8 lg:grid-cols-[1.1fr_.9fr]'>
-    <div className='grid gap-4 sm:grid-cols-2'>{fields.map(([name,label]) => <label key={name} className={name === 'title' || name === 'course_name' ? 'sm:col-span-2' : ''}><span>{label}</span><input required name={name} value={form[name]} onChange={setValue} /></label>)}<label className='sm:col-span-2'><span>University</span><input value={form.university} readOnly className='cursor-not-allowed bg-slate-50 text-slate-500' /></label><label className='sm:col-span-2'><span>Department</span><select required name='department' value={form.department} onChange={setValue}><option value=''>Choose your department</option>{UPSA_DEPARTMENTS.map(department => <option key={department} value={department}>{department}</option>)}</select></label><label className='sm:col-span-2'><span>Description <em>(optional)</em></span><textarea name='description' value={form.description} onChange={setValue} rows='3' placeholder='A short note to help students understand this file.' /></label><label><span>Level</span><select required name='level' value={form.level} onChange={setValue}><option value=''>Choose level</option>{['100','200','300','400'].map(x=><option key={x}>{x}</option>)}</select></label><label><span>Semester</span><select required name='semester' value={form.semester} onChange={setValue}><option value=''>Choose semester</option><option value='First Semester'>First Semester</option><option value='Second Semester'>Second Semester</option></select></label><label className='sm:col-span-2'><span>Resource type</span><div className='mt-2 flex gap-3'>{categories.map(c=><button type='button' key={c.value} onClick={()=>setForm(f=>({...f,category:c.value}))} className={`type-choice ${form.category === c.value ? 'active' : ''}`}>{c.label}</button>)}</div></label></div>
-    <div><div onDragOver={e=>{e.preventDefault();setDragging(true)}} onDragLeave={()=>setDragging(false)} onDrop={e=>{e.preventDefault();setDragging(false);setFile(e.dataTransfer.files?.[0]||null)}} className={`upload-drop ${dragging ? 'dragging' : ''}`}><UploadCloud size={36} /><b>{file ? file.name : 'Drop your resource here'}</b><p>{file ? `${(file.size / 1024 / 1024).toFixed(2)} MB ready to upload` : 'PDF, DOCX, PPTX and more'}</p><button type='button' onClick={()=>input.current?.click()} className='secondary-button'>Choose file</button><input ref={input} type='file' className='hidden' onChange={e=>setFile(e.target.files?.[0] || null)} /></div><div className='mt-4 rounded-2xl bg-slate-50 p-4'><div className='flex justify-between text-sm text-slate-600'><span>Upload progress</span><b>{progress}%</b></div><div className='mt-3 h-2 overflow-hidden rounded-full bg-slate-200'><div className='h-full rounded-full bg-blue-700 transition-all' style={{ width: `${progress}%` }} /></div></div><button className='primary-button mt-5 w-full'><FileUp size={18} /> Share resource</button>{status && <p className={`mt-4 flex gap-2 rounded-xl p-3 text-sm ${status.startsWith('Shared') ? 'bg-teal-50 text-teal-700' : 'bg-amber-50 text-amber-700'}`}><CheckCircle2 size={18} /> {status}</p>}</div>
-  </motion.form>;
+	const [form, setForm] = useState(initial);
+	const [file, setFile] = useState(null);
+	const [dragging, setDragging] = useState(false);
+	const [progress, setProgress] = useState(0);
+	const [status, setStatus] = useState('');
+	const input = useRef();
+	const setValue = (e) =>
+		setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+	const submit = async (e) => {
+		e.preventDefault();
+		if (!file) return setStatus('Please add a file before sharing.');
+		setStatus('');
+		try {
+			await onUpload({ ...form, file }, setProgress);
+			setStatus(
+				'Shared successfully — thank you for strengthening the NUPS-G library!',
+			);
+			setForm(initial);
+			setFile(null);
+		} catch (err) {
+			console.error('Upload failed:', err);
+			setProgress(0);
+			setStatus(err?.message || 'Upload failed. Please try again.');
+		}
+	};
+	const fields = [
+		['title', 'Resource title'],
+		['course_code', 'Course code'],
+		['course_name', 'Course name'],
+	];
+	return (
+		<motion.form
+			initial={{ opacity: 0, y: 15 }}
+			animate={{ opacity: 1, y: 0 }}
+			onSubmit={submit}
+			className='grid gap-8 lg:grid-cols-[1.1fr_.9fr]'
+		>
+			<div className='grid gap-4 sm:grid-cols-2'>
+				{fields.map(([name, label]) => (
+					<label
+						key={name}
+						className={
+							name === 'title' || name === 'course_name' ? 'sm:col-span-2' : ''
+						}
+					>
+						<span>{label}</span>
+						<input
+							required
+							name={name}
+							value={form[name]}
+							onChange={setValue}
+						/>
+					</label>
+				))}
+				<label className='sm:col-span-2'>
+					<span>University</span>
+					<input
+						value={form.university}
+						readOnly
+						className='cursor-not-allowed bg-slate-50 text-slate-500'
+					/>
+				</label>
+				<label className='sm:col-span-2'>
+					<span>Department</span>
+					<select
+						required
+						name='department'
+						value={form.department}
+						onChange={setValue}
+					>
+						<option value=''>Choose your department</option>
+						{UPSA_DEPARTMENTS.map((department) => (
+							<option
+								key={department}
+								value={department}
+							>
+								{department}
+							</option>
+						))}
+					</select>
+				</label>
+				<label className='sm:col-span-2'>
+					<span>
+						Description <em>(optional)</em>
+					</span>
+					<textarea
+						name='description'
+						value={form.description}
+						onChange={setValue}
+						rows='3'
+						placeholder='A short note to help students understand this file.'
+					/>
+				</label>
+				<label>
+					<span>Level</span>
+					<select
+						required
+						name='level'
+						value={form.level}
+						onChange={setValue}
+					>
+						<option value=''>Choose level</option>
+						{['100', '200', '300', '400'].map((x) => (
+							<option key={x}>{x}</option>
+						))}
+					</select>
+				</label>
+				<label>
+					<span>Semester</span>
+					<select
+						required
+						name='semester'
+						value={form.semester}
+						onChange={setValue}
+					>
+						<option value=''>Choose semester</option>
+						<option value='First Semester'>First Semester</option>
+						<option value='Second Semester'>Second Semester</option>
+					</select>
+				</label>
+				<label className='sm:col-span-2'>
+					<span>Resource type</span>
+					<div className='mt-2 flex gap-3'>
+						{categories.map((c) => (
+							<button
+								type='button'
+								key={c.value}
+								onClick={() => setForm((f) => ({ ...f, category: c.value }))}
+								className={`type-choice ${form.category === c.value ? 'active' : ''}`}
+							>
+								{c.label}
+							</button>
+						))}
+					</div>
+				</label>
+			</div>
+			<div>
+				<div
+					onDragOver={(e) => {
+						e.preventDefault();
+						setDragging(true);
+					}}
+					onDragLeave={() => setDragging(false)}
+					onDrop={(e) => {
+						e.preventDefault();
+						setDragging(false);
+						setFile(e.dataTransfer.files?.[0] || null);
+					}}
+					className={`upload-drop ${dragging ? 'dragging' : ''}`}
+				>
+					<UploadCloud size={36} />
+					<b>{file ? file.name : 'Drop your resource here'}</b>
+					<p>
+						{file
+							? `${(file.size / 1024 / 1024).toFixed(2)} MB ready to upload`
+							: 'PDF, DOCX, PPTX and more'}
+					</p>
+					<button
+						type='button'
+						onClick={() => input.current?.click()}
+						className='secondary-button'
+					>
+						Choose file
+					</button>
+					<input
+						ref={input}
+						type='file'
+						className='hidden'
+						onChange={(e) => setFile(e.target.files?.[0] || null)}
+					/>
+				</div>
+				<div className='mt-4 rounded-2xl bg-slate-50 p-4'>
+					<div className='flex justify-between text-sm text-slate-600'>
+						<span>Upload progress</span>
+						<b>{progress}%</b>
+					</div>
+					<div className='mt-3 h-2 overflow-hidden rounded-full bg-slate-200'>
+						<div
+							className='h-full rounded-full bg-blue-700 transition-all'
+							style={{ width: `${progress}%` }}
+						/>
+					</div>
+				</div>
+				<button
+					type='submit'
+					className='primary-button mt-5 w-full'
+				>
+					<FileUp size={18} /> Share resource
+				</button>
+				{status && (
+					<p
+						className={`mt-4 flex gap-2 rounded-xl p-3 text-sm ${status.startsWith('Shared') ? 'bg-teal-50 text-teal-700' : 'bg-amber-50 text-amber-700'}`}
+					>
+						<CheckCircle2 size={18} /> {status}
+					</p>
+				)}
+			</div>
+		</motion.form>
+	);
 }

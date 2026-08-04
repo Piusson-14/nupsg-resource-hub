@@ -6,7 +6,6 @@ import {
 	CalendarDays,
 	FileText,
 	GraduationCap,
-	Building2,
 	BookOpenText,
 } from 'lucide-react';
 import {
@@ -108,17 +107,11 @@ export function ResourceDetailPage() {
 						<h1 className='mt-4 text-3xl font-semibold text-white sm:text-4xl'>
 							{resource.title}
 						</h1>
-						<p className='mt-4 text-lg text-slate-400'>
-							{resource.description}
-						</p>
+						{resource.description ? (
+							<p className='mt-4 text-lg text-slate-400'>{resource.description}</p>
+						) : null}
 
 						<div className='mt-8 grid gap-4 sm:grid-cols-2'>
-							<div className='rounded-2xl border border-slate-800 bg-slate-950/60 p-4'>
-								<p className='text-sm text-slate-500'>University</p>
-								<p className='mt-2 flex items-center gap-2 text-white'>
-									<Building2 size={16} /> {resource.university}
-								</p>
-							</div>
 							<div className='rounded-2xl border border-slate-800 bg-slate-950/60 p-4'>
 								<p className='text-sm text-slate-500'>Department</p>
 								<p className='mt-2 flex items-center gap-2 text-white'>
@@ -167,7 +160,7 @@ export function ResourceDetailPage() {
 									>
 										<p className='font-medium text-white'>{item.title}</p>
 										<p className='mt-1 text-sm text-slate-400'>
-											{item.university} • {item.department}
+									{item.department}
 										</p>
 									</Link>
 								))}
