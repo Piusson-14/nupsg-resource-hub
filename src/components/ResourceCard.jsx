@@ -1,62 +1,14 @@
 import { motion } from 'framer-motion';
-import { ArrowDownToLine, FileText, Sparkles } from 'lucide-react';
+import { Download, FileQuestion, Files, GraduationCap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export function ResourceCard({ resource, onDownload }) {
-	return (
-		<motion.article
-			whileHover={{ y: -4, scale: 1.01 }}
-			transition={{ type: 'spring', stiffness: 220, damping: 20 }}
-			className='group rounded-3xl border border-slate-800 bg-slate-900/70 p-5 shadow-[0_20px_50px_-20px_rgba(34,211,238,0.35)]'
-		>
-			<div className='flex items-start justify-between gap-3'>
-				<div className='rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-3 text-cyan-300'>
-					<FileText size={18} />
-				</div>
-				<span className='rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-300'>
-					{resource.category}
-				</span>
-			</div>
-
-			<div className='mt-5 space-y-2'>
-				<h3 className='text-lg font-semibold text-white'>{resource.title}</h3>
-				<p className='line-clamp-3 text-sm text-slate-400'>
-					{resource.description}
-				</p>
-			</div>
-
-			<div className='mt-5 grid gap-2 text-sm text-slate-400'>
-				<div className='flex items-center justify-between'>
-					<span>{resource.university}</span>
-					<span>{resource.department}</span>
-				</div>
-				<div className='flex items-center justify-between'>
-					<span>{resource.course_code}</span>
-					<span>{resource.level}</span>
-				</div>
-			</div>
-
-			<div className='mt-5 flex items-center justify-between text-sm text-slate-400'>
-				<span>{resource.semester}</span>
-				<span>{resource.downloads} downloads</span>
-			</div>
-
-			<div className='mt-6 flex items-center gap-3'>
-				<Link
-					to={`/resources/${resource.id}`}
-					className='flex-1 rounded-2xl border border-slate-700 px-4 py-2 text-center text-sm font-medium text-slate-200 transition hover:border-cyan-400/40 hover:text-cyan-300'
-				>
-					View details
-				</Link>
-				<button
-					type='button'
-					onClick={() => onDownload(resource)}
-					className='flex items-center gap-2 rounded-2xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400'
-				>
-					<ArrowDownToLine size={16} />
-					Download
-				</button>
-			</div>
-		</motion.article>
-	);
+  const isPast = resource.category === 'past_questions';
+  const Icon = isPast ? FileQuestion : Files;
+  return <motion.article initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -4 }} className='resource-card group'>
+    <div className='flex items-start justify-between gap-3'><span className={`grid h-11 w-11 place-items-center rounded-2xl ${isPast ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-700'}`}><Icon size={21} /></span><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${isPast ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>{isPast ? 'Past questions' : 'Slides'}</span></div>
+    <Link to={`/course/${encodeURIComponent(resource.course_code)}`} className='mt-5 block'><h3 className='line-clamp-2 text-lg font-bold text-slate-900 group-hover:text-blue-800'>{resource.title}</h3><p className='mt-1 text-sm text-slate-500'>{resource.course_name || resource.department}</p></Link>
+    <div className='mt-5 flex items-center justify-between border-t border-slate-100 pt-4 text-xs text-slate-500'><span className='inline-flex items-center gap-1.5'><GraduationCap size={14} /> {resource.course_code} · L{resource.level}</span><span>{Number(resource.downloads || 0)} downloads</span></div>
+    <button onClick={() => onDownload(resource)} className='mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-blue-100 bg-white py-2.5 text-sm font-bold text-blue-800 transition hover:border-blue-700 hover:bg-blue-700 hover:text-white'><Download size={16} /> Download</button>
+  </motion.article>;
 }

@@ -1,111 +1,75 @@
 import { mockResources } from '../data/mockResources';
-import { supabase, isSupabaseConfigured } from './supabase';
+import { isSupabaseConfigured, supabase } from './supabase';
 
 const BUCKET_NAME = 'nupsg-resources';
-
-function normalizeResource(resource) {
-	return {
-		...resource,
-		downloads: Number(resource.downloads || 0),
-		file_size: Number(resource.file_size || 0),
-		created_at: resource.created_at || new Date().toISOString(),
-	};
-}
+export const categories = [{ value: 'slides', label: 'Lecture slides' }, { value: 'past_questions', label: 'Past questions' }];
+export const SEMESTERS = ['First Semester', 'Second Semester'];
+export const UPSA_DEPARTMENTS = [
+  'Accounting',
+  'Banking and Finance',
+  'Economics and Actuarial Science',
+  'Business Administration',
+  'Marketing',
+  'Information Technology Studies',
+  'Communication Studies',
+  'Law',
+];
+const normalize = (item) => ({ ...item, downloads: Number(item.downloads || 0), file_size: Number(item.file_size || 0) });
 
 export async function fetchResources() {
-	if (!isSupabaseConfigured || !supabase) {
-		return mockResources;
-	}
-
-	const { data, error } = await supabase
-		.from('resources')
-		.select('*')
-		.order('created_at', { ascending: false });
-
-	if (error) {
-		throw error;
-	}
-
-	return (data || []).map(normalizeResource);
+  if (!isSupabaseConfigured || !supabase) return mockResources.map(normalize);
+  const { data, error } = await supabase.from('resources').select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map(normalize);
 }
 
-export async function uploadResource(payload) {
-	if (!isSupabaseConfigured || !supabase) {
-		throw new Error(
-			'Supabase is not configured yet. Add your project URL and anon key first.',
-		);
-	}
-
-	const fileName = `${Date.now()}-${payload.file.name.replace(/\s+/g, '-')}`;
-	const storagePath = `resources/${fileName}`;
-
-	const { error: uploadError } = await supabase.storage
-		.from(BUCKET_NAME)
-		.upload(storagePath, payload.file, {
-			cacheControl: '3600',
-			upsert: false,
-		});
-
-	if (uploadError) {
-		throw uploadError;
-	}
-
-	const { data: publicUrlData } = supabase.storage
-		.from(BUCKET_NAME)
-		.getPublicUrl(storagePath);
-
-	const resourcePayload = {
-		id: crypto.randomUUID
-			? crypto.randomUUID()
-			: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-		title: payload.title,
-		description: payload.description,
-		university: payload.university,
-		department: payload.department,
-		course_code: payload.course_code,
-		level: payload.level,
-		semester: payload.semester,
-		category: payload.category,
-		file_name: payload.file.name,
-		file_path: storagePath,
-		file_size: payload.file.size,
-		downloads: 0,
-		created_at: new Date().toISOString(),
-	};
-
-	const { data, error } = await supabase
-		.from('resources')
-		.insert([resourcePayload])
-		.select()
-		.single();
-
-	if (error) {
-		throw error;
-	}
-
-	return normalizeResource({ ...data, publicUrl: publicUrlData?.publicUrl });
+export async function uploadResource(payload, onProgress) {
+  if (!isSupabaseConfigured || !supabase) throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to upload files.');
+  const safeName = payload.file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+  const filePath = `${payload.course_code.replace(/\s+/g, '-').toLowerCase()}/${Date.now()}-${safeName}`;
+  onProgress?.(20);
+  const { error: uploadError } = await supabase.storage.from(BUCKET_NAME).upload(filePath, payload.file, { cacheControl: '3600', upsert: false });
+  if (uploadError) throw uploadError;
+  onProgress?.(75);
+  const { data, error } = await supabase.from('resources').insert({
+    title: payload.title, description: payload.description || null, university: payload.university,
+    department: payload.department, course_code: payload.course_code.toUpperCase(), course_name: payload.course_name,
+    level: payload.level, semester: payload.semester, category: payload.category, file_name: payload.file.name,
+    file_path: filePath, file_size: payload.file.size,
+  }).select().single();
+  if (error) throw error;
+  onProgress?.(100);
+  return normalize(data);
 }
 
-export async function incrementResourceDownload(resource) {
-	if (!isSupabaseConfigured || !supabase) {
-		return { downloadUrl: null };
-	}
+export async function downloadResource(resource) {
+  const demoFile = () => {
+    const message = `NUPS-G Resource Hub demo\n\n${resource.title}\n${resource.course_code} · ${resource.course_name || ''}\n\nConnect Supabase and upload the original file to make it available here.`;
+    return { downloadUrl: URL.createObjectURL(new Blob([message], { type: 'text/plain' })), fileName: `${resource.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-demo.txt` };
+  };
+  // Starter resources are intentionally local placeholders, not files in Storage.
+  if (!isSupabaseConfigured || !supabase || resource.file_path?.startsWith('/files/')) return demoFile();
 
-	const { error } = await supabase
-		.from('resources')
-		.update({ downloads: (resource.downloads || 0) + 1 })
-		.eq('id', resource.id);
+  const { error } = await supabase.rpc('increment_resource_downloads', { resource_id: resource.id });
+  // Supports projects created with the earlier migration, before the RPC was added.
+  if (error) {
+    const { error: updateError } = await supabase.from('resources').update({ downloads: Number(resource.downloads || 0) + 1 }).eq('id', resource.id);
+    if (updateError) console.warn('Download counter could not be updated:', updateError.message);
+  }
+  const { data, error: fileError } = await supabase.storage.from(BUCKET_NAME).download(resource.file_path);
+  if (fileError) {
+    console.warn('Storage file could not be downloaded:', fileError.message);
+    return demoFile();
+  }
+  return { downloadUrl: URL.createObjectURL(data), fileName: resource.file_name || 'nupsg-resource' };
+}
 
-	if (error) {
-		throw error;
-	}
-
-	if (resource.file_path?.startsWith('http')) {
-		return { downloadUrl: resource.file_path };
-	}
-
-	const { data } = supabase.storage
-		.from(BUCKET_NAME)
-		.getPublicUrl(resource.file_path);
-	return { downloadUrl: data?.publicUrl || null };
+export function saveDownload(url, fileName) {
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
