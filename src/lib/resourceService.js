@@ -1,4 +1,3 @@
-import { mockResources } from '../data/mockResources';
 import { isSupabaseConfigured, supabase } from './supabase';
 
 const BUCKET_NAME = 'nupsg-resources';
@@ -24,7 +23,11 @@ const normalize = (item) => ({
 });
 
 export async function fetchResources() {
-	if (!isSupabaseConfigured || !supabase) return mockResources.map(normalize);
+	if (!isSupabaseConfigured || !supabase) {
+		throw new Error(
+			'Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY and restart the app.',
+		);
+	}
 	const { data, error } = await supabase
 		.from('resources')
 		.select('*')
@@ -39,10 +42,26 @@ export async function uploadResource(payload, onProgress) {
 			'Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to upload files.',
 		);
 	const safeName = payload.file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
-	const safeCourse = payload.course_code
-		.replace(/[^a-zA-Z0-9]+/g, '-')
-		.toLowerCase();
-	const filePath = `${safeCourse}/${Date.now()}-${safeName}`;
+	const safeCourse = payload.course_name?.trim()
+		? payload.course_name.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()
+		: payload.course_code.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase();
+	const filePath = `${safeCourse}/${payload.category}/${Date.now()}-${safeName}`;
+
+	const { data: duplicate, error: duplicateError } = await supabase
+		.from('resources')
+		.select('id')
+		.eq('course_code', payload.course_code.toUpperCase())
+		.eq('category', payload.category)
+		.eq('file_name', payload.file.name)
+		.maybeSingle();
+	if (duplicate) {
+		throw new Error(
+			'This file has already been uploaded for the selected course and type.',
+		);
+	}
+	if (duplicateError) {
+		console.warn('Duplicate check error:', duplicateError.message);
+	}
 	onProgress?.(20);
 	const { error: uploadError } = await supabase.storage
 		.from(BUCKET_NAME)
