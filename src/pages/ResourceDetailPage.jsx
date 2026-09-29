@@ -141,7 +141,7 @@ export function ResourceDetailPage() {
 							{resource.downloads} downloads
 						</p>
 						<p className='mt-2 text-sm text-slate-400'>
-							Open the file directly from the public Supabase bucket.
+							Open the file directly from secure cloud storage.
 						</p>
 						<button
 							onClick={handleDownload}

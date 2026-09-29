@@ -1,4 +1,5 @@
 import { isSupabaseConfigured, supabase } from './supabase';
+import { RESOURCE_UPLOADER_ENDPOINT, uploadFiles } from './uploadthing';
 
 const BUCKET_NAME = 'nupsg-resources';
 export const categories = [
@@ -20,6 +21,9 @@ const normalize = (item) => ({
 	...item,
 	downloads: Number(item.downloads || 0),
 	file_size: Number(item.file_size || 0),
+	// New UploadThing columns; legacy rows only have file_path.
+	file_url: item.file_url || null,
+	file_key: item.file_key || null,
 });
 
 export async function fetchResources() {
@@ -41,11 +45,6 @@ export async function uploadResource(payload, onProgress) {
 		throw new Error(
 			'Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to upload files.',
 		);
-	const safeName = payload.file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
-	const safeCourse = payload.course_name?.trim()
-		? payload.course_name.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()
-		: payload.course_code.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase();
-	const filePath = `${safeCourse}/${payload.category}/${Date.now()}-${safeName}`;
 
 	const { data: duplicate, error: duplicateError } = await supabase
 		.from('resources')
@@ -62,16 +61,35 @@ export async function uploadResource(payload, onProgress) {
 	if (duplicateError) {
 		console.warn('Duplicate check error:', duplicateError.message);
 	}
-	onProgress?.(20);
-	const { error: uploadError } = await supabase.storage
-		.from(BUCKET_NAME)
-		.upload(filePath, payload.file, {
-			cacheControl: '3600',
-			upsert: false,
-			contentType: payload.file.type,
+	onProgress?.(10);
+
+	// 1. File bytes go to UploadThing via /api/uploadthing.
+	let uploaded;
+	try {
+		const result = await uploadFiles(RESOURCE_UPLOADER_ENDPOINT, {
+			files: [payload.file],
+			onUploadProgress: ({ progress }) => {
+				// Reserve 10% for the duplicate check and 25% for the DB insert.
+				onProgress?.(Math.round(10 + (progress / 100) * 65));
+			},
 		});
-	if (uploadError) throw uploadError;
-	onProgress?.(75);
+		uploaded = result?.[0];
+	} catch (err) {
+		console.error('UploadThing upload failed:', err);
+		throw new Error(
+			'File upload failed. If running locally with `vite`, use `vercel dev` so /api/uploadthing exists, or deploy a preview.',
+		);
+	}
+	const fileUrl = uploaded?.ufsUrl || uploaded?.url;
+	const fileKey = uploaded?.key;
+	if (!fileUrl || !fileKey) {
+		throw new Error('File upload failed. Please try again.');
+	}
+	onProgress?.(80);
+
+	// 2. Metadata row stays in Supabase so browsing/filtering is unchanged.
+	// file_path keeps the UploadThing key for backwards compatibility
+	// with the NOT NULL constraint on older projects.
 	const row = {
 		title: payload.title,
 		description: payload.description || '',
@@ -82,8 +100,10 @@ export async function uploadResource(payload, onProgress) {
 		semester: payload.semester,
 		category: payload.category,
 		file_name: payload.file.name,
-		file_path: filePath,
+		file_path: fileKey,
 		file_size: payload.file.size,
+		file_url: fileUrl,
+		file_key: fileKey,
 	};
 	if (payload.course_name) row.course_name = payload.course_name;
 
@@ -94,14 +114,17 @@ export async function uploadResource(payload, onProgress) {
 		.single();
 	if (
 		insertResult.error &&
-		insertResult.error.message?.includes('course_name')
+		(insertResult.error.message?.includes('course_name') ||
+			insertResult.error.message?.includes('file_url') ||
+			insertResult.error.message?.includes('file_key'))
 	) {
+		// Older DB without the newer columns: retry with only legacy fields.
+		// Run supabase/uploadthing-migration.sql to stop hitting this path.
 		delete row.course_name;
-		insertResult = await supabase
-			.from('resources')
-			.insert(row)
-			.select()
-			.single();
+		delete row.file_url;
+		delete row.file_key;
+		row.file_path = fileUrl;
+		insertResult = await supabase.from('resources').insert(row).select().single();
 	}
 	if (insertResult.error) throw insertResult.error;
 	const { data } = insertResult;
@@ -128,21 +151,33 @@ export async function downloadResource(resource) {
 	)
 		return demoFile();
 
-	const { error } = await supabase.rpc('increment_resource_downloads', {
-		resource_id: resource.id,
-	});
-	// Supports projects created with the earlier migration, before the RPC was added.
-	if (error) {
-		const { error: updateError } = await supabase
-			.from('resources')
-			.update({ downloads: Number(resource.downloads || 0) + 1 })
-			.eq('id', resource.id);
-		if (updateError)
-			console.warn(
-				'Download counter could not be updated:',
-				updateError.message,
-			);
+	const bumpCounter = async () => {
+		const { error } = await supabase.rpc('increment_resource_downloads', {
+			resource_id: resource.id,
+		});
+		// Supports projects created with the earlier migration, before the RPC was added.
+		if (error) {
+			const { error: updateError } = await supabase
+				.from('resources')
+				.update({ downloads: Number(resource.downloads || 0) + 1 })
+				.eq('id', resource.id);
+			if (updateError)
+				console.warn(
+					'Download counter could not be updated:',
+					updateError.message,
+				);
+		}
+	};
+
+	// New UploadThing rows: files live on the UploadThing CDN, open directly.
+	const directUrl = resource.file_url || (resource.file_path?.startsWith('http') ? resource.file_path : null);
+	if (directUrl) {
+		await bumpCounter();
+		return { downloadUrl: directUrl, fileName: resource.file_name || 'nupsg-resource' };
 	}
+
+	// Legacy rows: files live in the Supabase Storage bucket.
+	await bumpCounter();
 	const { data, error: fileError } = await supabase.storage
 		.from(BUCKET_NAME)
 		.download(resource.file_path);
